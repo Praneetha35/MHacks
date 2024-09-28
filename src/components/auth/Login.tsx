@@ -1,153 +1,253 @@
-import { FormEvent, useEffect, useState } from "react"
-import { Box, Button, Container, Link, Paper, TextField, Typography } from "@mui/material"
-import NextLink from "next/link"
-import { useRouter } from "next/router"
-import { toast } from "react-toastify"
-import { Status } from "@/types/status"
-import { useFormik } from "formik"
-import { toFormikValidate } from "zod-formik-adapter"
-import ArrowBackIcon from "@mui/icons-material/ArrowBack"
+import { useEffect, useState } from "react";
+import {
+    Box,
+    Button,
+    Container,
+    Grid,
+    Link,
+    Paper,
+    TextField,
+    Typography,
+} from "@mui/material";
+import NextLink from "next/link";
+import { useRouter } from "next/router";
+import { toast } from "react-toastify";
+import { Status } from "@/types/status";
+import { useFormik } from "formik";
+import { toFormikValidate } from "zod-formik-adapter";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
-import SubmitButton from "../common/SubmitButton"
-import { UserModelSchemaType, UserRegistrationSchema, UserRegistrationSchemaType } from "@/schema/UserSchema"
-import { useUser } from "@/lib/hooks/useUser"
-import { fetcher } from "@/lib/fetcher"
+import SubmitButton from "../common/SubmitButton";
+import {
+    UserModelSchemaType,
+    UserRegistrationSchema,
+    UserRegistrationSchemaType,
+} from "@/schema/UserSchema";
+import { useUser } from "@/lib/hooks/useUser";
+import { fetcher } from "@/lib/fetcher";
 
 const initialValues = {
-  name: "",
-  email: "",
-  password: "",
-}
+    email: "",
+    password: "",
+};
 
 const Login = () => {
-  const [status, setStatus] = useState<Status>("idle")
+    const [status, setStatus] = useState<Status>("idle");
 
-  const { data, mutate } = useUser()
+    const { data, mutate } = useUser();
+    const router = useRouter();
 
-  const router = useRouter()
+    useEffect(() => {
+        if (data?.payload) {
+            router.replace("/home");
+        }
+    }, [data?.payload, router]);
 
-  useEffect(() => {
-    if (data?.payload) {
-      router.replace("/home")
-    }
-  }, [data?.payload, router])
+    const loginUser = async (
+        data: Omit<UserRegistrationSchemaType, "name">
+    ) => {
+        setStatus("loading");
 
-  const loginUser = async (data: Omit<UserRegistrationSchemaType, "name">) => {
-    setStatus("loading")
+        const responseData = await fetcher<
+            UserModelSchemaType,
+            Omit<UserRegistrationSchemaType, "name">
+        >("/api/auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            data: data,
+        });
 
-    const responseData = await fetcher<UserModelSchemaType, Omit<UserRegistrationSchemaType, "name">>("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      data: data,
-    })
+        if (responseData.error) {
+            toast.error(responseData.error);
+            setStatus("error");
+            formik.resetForm();
+        } else {
+            mutate({ payload: responseData.payload }, false);
+            setStatus("success");
+        }
+    };
 
-    if (responseData.error) {
-      toast.error(responseData.error)
-      setStatus("error")
-      formik.resetForm()
-    } else {
-      mutate({ payload: responseData.payload }, false)
-      setStatus("success")
-    }
-  }
+    const formik = useFormik({
+        initialValues,
+        validate: toFormikValidate(UserRegistrationSchema.omit({ name: true })),
+        onSubmit: (formValues) => {
+            loginUser(formValues);
+        },
+    });
 
-  const formik = useFormik({
-    initialValues,
-    validate: toFormikValidate(UserRegistrationSchema.omit({ name: true })),
-    onSubmit: (formValues) => {
-      loginUser(formValues)
-    },
-  })
-
-  return (
-    <Box
-      component="main"
-      sx={{
-        alignItems: "center",
-        display: "flex",
-        flexGrow: 1,
-        minHeight: "100%",
-        marginTop: 20,
-      }}
-    >
-      <Container maxWidth="sm">
-        <Paper
-          elevation={20}
-          sx={{
-            padding: 5,
-          }}
+    return (
+        <Box
+            component="main"
+            sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: "100vh",
+                backgroundColor: "#e0e0e0",
+                padding: 4,
+            }}
         >
-          <NextLink href="/" passHref>
-            <Button startIcon={<ArrowBackIcon />}>Home</Button>
-          </NextLink>
-          <form onSubmit={formik.handleSubmit}>
-            <Box sx={{ my: 3 }}>
-              <Typography color="textPrimary" variant="h4">
-                Sign in
-              </Typography>
-            </Box>
-            <Box
-              sx={{
-                pb: 1,
-                pt: 1,
-              }}
+            <Paper
+                elevation={10}
+                sx={{
+                    width: "75%",
+                    maxWidth: "900px",
+                    display: "flex",
+                    borderRadius: "15px",
+                    overflow: "hidden",
+                    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.1)",
+                }}
             >
-              <Typography align="center" color="textSecondary" variant="body1">
-                Login with your email address
-              </Typography>
-            </Box>
-            <TextField
-              fullWidth
-              label="Email Address"
-              margin="normal"
-              name="email"
-              onBlur={formik.handleBlur}
-              onChange={formik.handleChange}
-              value={formik.values.email}
-              type="email"
-              variant="outlined"
-              placeholder=""
-              helperText={(formik.touched.email && formik.errors.email) || " "}
-              error={Boolean(formik.touched.email && formik.errors.email)}
-            />
-            <TextField
-              error={Boolean(formik.touched.password && formik.errors.password)}
-              fullWidth
-              helperText={formik.touched.password && formik.errors.password}
-              label="Password"
-              margin="normal"
-              name="password"
-              onBlur={formik.handleBlur}
-              onChange={formik.handleChange}
-              type="password"
-              value={formik.values.password}
-              variant="outlined"
-            />
-            <Box sx={{ py: 2 }}>
-              <SubmitButton
-                text="Sign in Now"
-                isLoading={status === "loading" || status === "success"}
-                isDisabled={!formik.isValid || status === "loading" || status === "success"}
-              />
-            </Box>
-          </form>
-          <NextLink href="/forgot-password" passHref>
-            Forgot password
-          </NextLink>
-          <div style={{ display: "flex" }}>
-            <Typography mt={1} mr={1} color="textSecondary" variant="body2">
-              Don&apos;t have an account?
-            </Typography>
-            <NextLink href="/register">
-              <Typography mt={1} color="textSecondary" variant="body2">
-                Register
-              </Typography>
-            </NextLink>
-          </div>
-        </Paper>
-      </Container>
-    </Box>
-  )
-}
+                {/* Left Side - Text Section */}
+                <Box
+                    sx={{
+                        backgroundColor: "#fff",
+                        flex: 1,
+                        padding: 4,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexDirection: "column",
+                    }}
+                >
+                    <Typography
+                        variant="h6"
+                        align="center"
+                        sx={{ color: "#333", fontWeight: "bold", mb: 2 }}
+                    >
+                        Two Paths, One Goal: Partner Up for Better Health!
+                    </Typography>
+                </Box>
 
-export default Login
+                {/* Right Side - Login Form */}
+                <Box
+                    sx={{
+                        backgroundColor: "#f9f9f9",
+                        flex: 1,
+                        padding: 4,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexDirection: "column",
+                    }}
+                >
+                    <NextLink href="/" passHref>
+                        <Button
+                            startIcon={<ArrowBackIcon />}
+                            sx={{ alignSelf: "flex-start", mb: 2 }}
+                        >
+                            Home
+                        </Button>
+                    </NextLink>
+                    <Typography variant="h5" sx={{ fontWeight: "bold", mb: 2 }}>
+                        Login
+                    </Typography>
+                    <form
+                        onSubmit={formik.handleSubmit}
+                        style={{ width: "100%" }}
+                    >
+                        <TextField
+                            fullWidth
+                            label="Username"
+                            margin="normal"
+                            name="email"
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            value={formik.values.email}
+                            type="email"
+                            variant="outlined"
+                            placeholder="Enter your username"
+                            error={Boolean(
+                                formik.touched.email && formik.errors.email
+                            )}
+                            helperText={
+                                formik.touched.email && formik.errors.email
+                            }
+                        />
+                        <TextField
+                            fullWidth
+                            label="Password"
+                            margin="normal"
+                            name="password"
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            type="password"
+                            value={formik.values.password}
+                            variant="outlined"
+                            placeholder="Enter your password"
+                            error={Boolean(
+                                formik.touched.password &&
+                                    formik.errors.password
+                            )}
+                            helperText={
+                                formik.touched.password &&
+                                formik.errors.password
+                            }
+                        />
+                        <Button
+                            type="submit"
+                            fullWidth
+                            variant="contained"
+                            color="primary"
+                            disabled={
+                                !formik.isValid ||
+                                status === "loading" ||
+                                status === "success"
+                            }
+                            sx={{
+                                padding: "10px 0",
+                                backgroundColor: "#4caf50",
+                                "&:hover": {
+                                    backgroundColor: "#388e3c",
+                                },
+                                marginBottom: 2,
+                            }}
+                        >
+                            {status === "loading" || status === "success"
+                                ? "Signing In..."
+                                : "Login"}
+                        </Button>
+                        {/* <Button
+                            type="button"
+                            fullWidth
+                            variant="outlined"
+                            color="secondary"
+                            sx={{
+                                marginBottom: 2,
+                            }}
+                        >
+                            Login w/ Google
+                        </Button> */}
+                    </form>
+                    <NextLink href="/forgot-password" passHref>
+                        <Link
+                            variant="body2"
+                            sx={{
+                                display: "block",
+                                textAlign: "center",
+                                marginBottom: 2,
+                                color: "#007BFF",
+                            }}
+                        >
+                            Forgot password?
+                        </Link>
+                    </NextLink>
+                    <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        align="center"
+                    >
+                        Don&apos;t have an account?{" "}
+                        <NextLink href="/register">
+                            <Link underline="hover" sx={{ color: "#007BFF" }}>
+                                Register
+                            </Link>
+                        </NextLink>
+                    </Typography>
+                </Box>
+            </Paper>
+        </Box>
+    );
+};
+
+export default Login;
