@@ -96,8 +96,8 @@ const ForgotPassword = () => {
                         align="center"
                         sx={{ color: "#666", mb: 2 }}
                     >
-                        Enter your email address and we'll send you a link to
-                        reset your password.
+                        Enter your email address and we&rsquo;ll send you a link
+                        to reset your password.
                     </Typography>
                 </Box>
 
